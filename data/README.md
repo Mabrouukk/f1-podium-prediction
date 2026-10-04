@@ -1,8 +1,7 @@
 # Data
 
-The raw CSVs are not committed. The notebook downloads them automatically with `kagglehub`
-(dataset `rohanrao/formula-1-world-championship-1950-2020`, version 24).
+We don't upload the CSV files here. The notebook downloads them from Kaggle when you run it.
 
-On Kaggle, add the dataset as notebook input and the notebook reads it from `/kaggle/input/` instead.
+If you run it on Kaggle, just add the dataset as an input and it will read it from there.
 
-The raw files are never modified; all cleaning happens on copies inside the notebook.
+We never edit the original files, all the cleaning is done inside the notebook.

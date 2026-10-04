@@ -1,37 +1,28 @@
-# Formula 1 Podium Prediction (Milestone 1)
+# F1 Podium Prediction
 
-Predicts whether a driver finishes on the podium (`positionOrder <= 3`) using only information
-available after qualifying and before the race starts.
+This is our Milestone 1 project. We're trying to predict if a driver will finish in the top 3 of a race, using only what we know after qualifying (so nothing from the race itself).
 
-Dataset: [Formula 1 World Championship (1950–2024)](https://www.kaggle.com/datasets/rohanrao/formula-1-world-championship-1950-2020)
+We're using the Formula 1 World Championship dataset from Kaggle:
+https://www.kaggle.com/datasets/rohanrao/formula-1-world-championship-1950-2020
 
 ## Team
 
-| Name | ID |
-|------|----|
-| Mahmoud Ahmed Mabrouk Ghobashy | 58-2432 |
-| Zain Abdullah | 58-0726 |
-| Marawan Lasheen | 58-6465 |
+- Mahmoud Ahmed Mabrouk Ghobashy - 58-2432
+- Zain Abdullah - 58-0726
+- Marawan Lasheen - 58-6465
 
-## Structure
+## What's in here
 
-| Path | Contents |
-|------|----------|
-| `notebooks/f1_podium_prediction.ipynb` | The single run-all notebook (EDA, cleaning, questions, features, models, ablation, XAI, inference) |
-| `report/` | Final PDF report |
-| `data/` | Raw CSVs (downloaded automatically, not committed) |
+- `notebooks/f1_podium_prediction.ipynb` - the main notebook, everything is in there
+- `report/` - the PDF report
+- `data/` - the dataset goes here (it's not on GitHub, the notebook downloads it)
 
-## Running locally
+## How to run it
 
-```bash
-python3 -m venv .venv
-source .venv/bin/activate
+Install the requirements:
+
+```
 pip install -r requirements.txt
-jupyter notebook notebooks/f1_podium_prediction.ipynb
 ```
 
-Then **Run All**. The first run downloads the dataset (~6 MB).
-
-## Deadline
-
-18 October 2026, 11:59 PM
+Then open the notebook and click Run All. The first time you run it, it downloads the dataset (around 6 MB).
