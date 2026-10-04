@@ -1,0 +1,17 @@
+# Data (downloaded by the notebook, not committed)
+data/*
+!data/README.md
+
+# Python
+__pycache__/
+*.pyc
+.venv/
+venv/
+
+# Jupyter
+.ipynb_checkpoints/
+
+# Editors / OS
+.vscode/
+.idea/
+.DS_Store
