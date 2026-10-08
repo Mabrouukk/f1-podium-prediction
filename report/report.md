@@ -111,6 +111,8 @@ All cleaning works on copies; the raw CSVs are never modified. Every rule below 
 
 ![Q3: mechanical retirements per start by constructor (95% Wilson CIs).](figures/q3_mechanical_by_constructor.png)
 
+![Q3: the same team lineage across both periods (renamed teams grouped). Toro Rosso → AlphaTauri → RB improved from 14.4% to 5.9%; Lotus F1 → Renault → Alpine stayed high (13.2% → 10.4%).](figures/q3_lineage.png)
+
 ## 4. Features and why each is valid at the pre-race cutoff
 
 Every *form* feature uses `groupby(...).shift(1)`, so it covers only earlier races. This was verified by a brute-force recomputation on 200 random rows. *Standings* features come from the table after the **previous round** of the same season. The unshifted standings would be leakage: they reach AUC 0.937 against 0.855 for ours, and a perfect 1.000 in round 1.
@@ -201,9 +203,17 @@ We removed one group at a time and retrained the final model, with gradient boos
   - **Verstappen, 17th after a 5-place penalty: P = 0.04.** The grid removes −0.14 and a slow wet qualifying lap another −0.05, while the penalty (+0.03), his record and his team (+0.05) partly compensate. He won.
   - LIME agrees qualitatively; its local fit is loose (R² ≈ 0.2).
 
-![SHAP summary (test rows) for the final model.](figures/xai_shap_beeswarm.png)
+![Global: permutation importance per feature and per feature group (validation PR-AUC drop).](figures/xai_permutation.png)
 
-![Local SHAP: Verstappen, 2024 São Paulo GP.](figures/xai_local_verstappen.png)
+![Global: SHAP summary on 300 test rows for the final model. Blue = low feature value, red = high.](figures/xai_shap_beeswarm.png)
+
+![Global cross-check: mean |SHAP| for the final model vs gradient boosting (TreeSHAP). Both rank grid_pos first by a wide margin.](figures/xai_shap_bar_models.png)
+
+![Local SHAP: Norris, 2024 São Paulo GP (pole, P = 0.75, finished 6th).](figures/xai_local_norris.png)
+
+![Local SHAP: Verstappen, 2024 São Paulo GP (started 17th, P = 0.04, won).](figures/xai_local_verstappen.png)
+
+![Local LIME: Verstappen, 2024 São Paulo GP. Red conditions push P(podium) down, blue push it up. Starting beyond P16 and a slow qualifying gap dominate, partly offset by his penalty (grid_vs_quali > 0), recent form and a front-running team.](figures/xai_lime_verstappen.png)
 
 ## 9. Inference function
 
@@ -222,3 +232,51 @@ We removed one group at a time and retrained the final model, with gradient boos
 5. **Constructor renames** reset team history.
 6. **Documented judgement calls:** the shared-drive rule, the population filters, pit-lane placement and the status grouping.
 7. **The explanations are not causal.**
+
+## Appendix A. Additional figures
+
+Every remaining figure from the notebook, in notebook order. The section numbers refer to the notebook.
+
+### A.1 EDA before cleaning (notebook section 2)
+
+![Raw table sizes (log scale). `lap_times` and `pit_stops` are post-race and never used as features.](figures/eda_table_sizes.png)
+
+![Share of rows that are `\N`, per column (key tables).](figures/eda_sentinels.png)
+
+![Raw results: races per season, entries per race and podium base rate per row.](figures/eda_seasons_raw.png)
+
+![Rows with grid = 0 by reason: before 1994 almost always non-starters (F/W); from 1994 mostly pit-lane starts.](figures/eda_grid_zero.png)
+
+![Duplicate (raceId, driverId) rows by season (shared drives) and the 15 most common status values.](figures/eda_duplicates_status.png)
+
+### A.2 Cleaning and EDA after cleaning (notebook sections 3–4)
+
+![Semantic typing: qualifying Q1 times as numeric seconds and driver age at race from real dates.](figures/clean_typing_examples.png)
+
+![Key audit: every primary-key, natural-key and foreign-key check. Only the results grain (raceId, driverId) fails, before the duplicate rule is applied.](figures/clean_key_audit.png)
+
+![Podium rate by starting position per era: the curve steepens over time.](figures/eda_podium_by_grid.png)
+
+### A.3 Feature evidence (notebook section 6)
+
+![Univariate ROC-AUC of each feature on the training seasons, coloured by feature group.](figures/feat_univariate_auc.png)
+
+![Spearman correlations between features and the target (training seasons).](figures/feat_correlations.png)
+
+![Missingness of each feature by season.](figures/feat_missingness.png)
+
+### A.4 Split and preprocessing (notebook sections 7–8)
+
+![Training-window experiment: validation PR-AUC by first training season.](figures/split_window_experiment.png)
+
+![The chronological split of the modeling table.](figures/split_timeline.png)
+
+![Effect of preprocessing on three features: raw → after median imputation → after standardisation.](figures/prep_effect.png)
+
+### A.5 Models (notebook sections 9–10)
+
+![Logistic regression: standardised coefficients (|coef| > 0.05).](figures/model_lr_coefficients.png)
+
+![Shallow neural network: training loss and early-stopping hold-out score per epoch.](figures/model_mlp_training.png)
+
+![Final model: test confusion matrix at the validation threshold, and scores per test season.](figures/compare_best_model.png)
