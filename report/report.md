@@ -1,6 +1,6 @@
 ---
 title: "Formula 1 Podium Prediction: Milestone 1 Analytical Report"
-subtitle: "Mahmoud Ahmed Mabrouk Ghobashy (58-2432) · Zain Abdullah (58-0726) · Marawan Lasheen (58-6465) · Omar Salah"
+subtitle: "Mahmoud Ahmed Mabrouk Ghobashy (58-2432) · Zain Abdullah (58-0726) · Marawan Lasheen (58-6465) · Omar Salah (58-6370)"
 ---
 
 ## 1. Task and headline result
