@@ -5,7 +5,7 @@ subtitle: "Mahmoud Ahmed Mabrouk Ghobashy (58-2432) · Zain Abdullah (58-0726) �
 
 ## 1. Task and headline result
 
-We predict, for every driver in a race, whether he finishes on the podium (`positionOrder ≤ 3`), using only information available **after qualifying and before the start**. The data is the Kaggle/Ergast Formula 1 dataset (version 24, 1950–2024, 14 relational tables). All numbers and figures in this report come from the run-all notebook `notebooks/f1_podium_prediction.ipynb`.
+We predict, for every driver in a race, whether that driver finishes on the podium (`positionOrder ≤ 3`), using only information available **after qualifying and before the start**. The data is the Kaggle/Ergast Formula 1 dataset (version 24, 1950–2024, 14 relational tables). All numbers and figures in this report come from the run-all notebook `notebooks/f1_podium_prediction.ipynb`.
 
 | | |
 |---|---|
@@ -35,7 +35,7 @@ All cleaning works on copies; the raw CSVs are never modified. Every rule below 
 - **Duplicates (shared drives, 1950–1964 plus one 1978 non-qualifier).** Each duplicate row carries the grid slot of *its car*, so:
   - the "non-zero grid" rule decides **none** of the 85 pairs;
   - the "best positionOrder" rule would give 64 drivers the grid slot of a car they did not start in, which is post-start information.
-- **Our duplicate rule.** We keep the driver's first entry (lowest `resultId`), which is the car he started in. We verified this on documented cases: Moss and Brooks in the 1957 British GP, Fangio in the 1956 Italian GP, and Moss in the 1960 Argentine GP. The label is "podium in any car", because officially these drivers are credited with that result; using only the started car's position would lose 16 credited podiums.
+- **Our duplicate rule.** We keep the driver's first entry (lowest `resultId`), which is the car the driver started in. We verified this on documented cases: Moss and Brooks in the 1957 British GP, Fangio in the 1956 Italian GP, and Moss in the 1960 Argentine GP. The label is "podium in any car", because officially these drivers are credited with that result; using only the started car's position would lose 16 credited podiums.
 - **Modeling population.**
   - We remove the **Indianapolis 500**, identified by race name: only 4% of its 107 drivers ever entered another championship race.
   - We remove **non-starters**: `F` (failed to qualify) and `W` (withdrawn).
@@ -61,9 +61,11 @@ All cleaning works on copies; the raw CSVs are never modified. Every rule below 
 - **Best converters in 2014–2024:** Monaco (89%), Suzuka (89%) and Yas Marina (86%).
 - **Worst:** the Hungaroring (59%) and Mexico City (61%).
 - **The ranking changes almost completely** (Spearman ρ = −0.08, p = 0.76). Monaco went from 15th to 1st; the Hungaroring from 2nd to last.
-- **Interpretation:** before 2014 conversion was driven by reliability; since 2014 it reflects how hard overtaking is.
+- **Interpretation:** before 2014 only 70% of front-row starters even reached the flag, against 92% since 2014, so the old ranking was shaped largely by reliability; today it mostly reflects how hard overtaking is. This is plausible but not tested circuit by circuit, and with 14–26 front-row starts per circuit after 2014 only the top and bottom of the ranking are robust.
 
 **Qualifying vs grid** (2003–2024, full coverage). In 2014–2024, 6.0% of front-row qualifiers did not start on the front row because of penalties, and they converted only 33%, against 77% for drivers who qualified *and* started there. The grid is the right definition of a "front-row start". The qualifying-based ranking is similar (ρ = 0.90).
+
+**Grain:** driver-race. **Missingness:** none in `grid`; qualifying is incomplete before 2003, so the qualifying comparison uses 2003+. **Cutoff:** grid and qualifying position are both known before the start.
 
 ![Q1: front-row conversion by circuit (rank before → after 2014).](figures/q1_front_row_by_circuit.png)
 
@@ -87,6 +89,8 @@ All cleaning works on copies; the raw CSVs are never modified. Every rule below 
 - **The naive effect is even negative.** Home races attract one-off local entrants who start at the back: 50.6% of home rows start P13 or worse, against 45.5% of away rows.
 - **This is an association, not a causal estimate.**
 
+**Grain:** one row per starter per race. **Missingness:** nationality is never missing and every nationality is mapped. **Cutoff:** nationality and grid are known before the start.
+
 ![Q2: podium rate home vs away within grid bands, and pooled odds ratios.](figures/q2_home_advantage.png)
 
 ### Q3. Mechanical-retirement rate by constructor, 2014–2021 vs 2022–2024
@@ -105,9 +109,11 @@ All cleaning works on copies; the raw CSVs are never modified. Every rule below 
 | 2014–2021 | Lotus F1 17.3%, Toro Rosso 16.1%, Renault 13.1%, McLaren 13.0% | 8.9% |
 | 2022–2024 | Alfa Romeo 12.5%, Alpine 10.4%, AlphaTauri 6.8% | 5.5% |
 
-- **2014–2021:** the immature Renault and Honda hybrid power units dominate the list. Mercedes (3.8%) and Ferrari (4.7%) were the most reliable.
+- **2014–2021:** the immature Renault and Honda hybrid power units dominate the list. Mercedes (3.8%) and Ferrari (4.7%) were among the most reliable.
 - **Strict vs broad:** the ranking is stable for 2014–2021 (Spearman 0.95). It is less stable for 2022–2024 (0.68), where teams sit within overlapping confidence intervals.
 - **Renamed teams** are separate `constructorId`s. A lineage view follows each organisation across both periods.
+
+**Grain:** one row per race start. **Missingness:** status is never missing and every status is mapped. **Cutoff:** status is post-race, so it is used only for this question and for *past-race* reliability features, never as a feature of the current race.
 
 ![Q3: mechanical retirements per start by constructor (95% Wilson CIs).](figures/q3_mechanical_by_constructor.png)
 
@@ -130,7 +136,7 @@ Every *form* feature uses `groupby(...).shift(1)`, so it covers only earlier rac
 
 - Univariate AUCs: `quali_pos` 0.91, `grid_pos` 0.88, championship positions 0.83–0.84, constructor form 0.83, driver form 0.79–0.81.
 - All of these features are monotone in the decile plots.
-- **Excluded on evidence:** `home_race` (Q2, and re-checked: adding it changes test PR-AUC by +0.0001), sprint results (only from 2021, so absent from training), and `year` (the model would have to extrapolate).
+- **Excluded on evidence:** `home_race` (Q2, and re-checked: adding it changes test PR-AUC by +0.0001 and its coefficient is practically zero), sprint results (only from 2021, so absent from training), and `year` (the model would have to extrapolate).
 
 ![Feature evidence: podium rate across deciles of each feature (training seasons).](figures/feat_effect_plots.png)
 
@@ -157,19 +163,20 @@ The models below use the same rows, features and preprocessing. Hyperparameters 
 - **Primary metric, PR-AUC:** the positive class is rare (about 15%), and PR-AUC is not inflated by easy negatives.
 - **Secondary metric, F1:** the quality of the actual yes/no decision.
 
-| model | val PR-AUC | test PR-AUC | test ROC-AUC | test F1 | test precision | test recall | test top-3 prec. |
-|---|---|---|---|---|---|---|---|
-| reference: grid ≤ 3 | 0.648 | 0.647 | 0.913 | 0.649 | 0.650 | 0.647 | 0.652 |
-| logistic regression (baseline) | 0.738 | 0.722 | 0.937 | 0.669 | 0.543 | 0.873 | 0.662 |
-| **logistic regression (tuned, final)** | **0.738** | **0.722** | **0.937** | **0.669** | 0.543 | 0.873 | 0.662 |
-| random forest | 0.723 | 0.717 | 0.940 | 0.667 | 0.543 | 0.863 | 0.632 |
-| gradient boosting | 0.717 | 0.708 | 0.938 | 0.689 | 0.673 | 0.706 | 0.652 |
-| shallow NN (MLP 64→32) | 0.747* | 0.715 | 0.933 | 0.672 | 0.575 | 0.809 | 0.637 |
+| model | train PR-AUC | val PR-AUC | test PR-AUC | test ROC-AUC | test F1 | test precision | test recall | test top-3 prec. |
+|---|---|---|---|---|---|---|---|---|
+| reference: grid ≤ 3 | 0.544 | 0.648 | 0.647 | 0.913 | 0.649 | 0.650 | 0.647 | 0.652 |
+| logistic regression (baseline) | 0.616 | 0.738 | 0.722 | 0.937 | 0.669 | 0.543 | 0.873 | 0.662 |
+| **logistic regression (tuned, final)** | 0.616 | **0.738** | **0.722** | **0.937** | **0.669** | 0.543 | 0.873 | 0.662 |
+| random forest | 0.662 | 0.723 | 0.717 | 0.940 | 0.667 | 0.543 | 0.863 | 0.632 |
+| gradient boosting | 0.716 | 0.717 | 0.708 | 0.938 | 0.689 | 0.673 | 0.706 | 0.652 |
+| shallow NN (MLP 64→32) | 0.645 | 0.747* | 0.715 | 0.933 | 0.672 | 0.575 | 0.809 | 0.637 |
 
-\* single seed; the 5-seed mean is 0.730 ± 0.019. The network was therefore selected on its mean, and the tuned logistic regression became the final model. Train-set scores are in the notebook.
+\* single seed; the 5-seed mean is 0.730 ± 0.019. The network was therefore selected on its mean, and the tuned logistic regression became the final model. Train scores are *lower* than validation for every model because the 1981–2002 training seasons (no qualifying data, low reliability, big fields) are much harder to predict than the modern seasons; the full train/validation/test table for all metrics is in the notebook (section 10).
 
 - **Learned models vs the rule.** A race-level bootstrap gives 95% intervals of about ±0.06 on test PR-AUC. **All learned models beat the rule** (0 of 1,000 bootstrap samples favour the rule) but are **indistinguishable from each other**: the flexible models beat the baseline in only 15–33% of samples.
 - **The models are well calibrated.**
+- **Top-3 precision is no better than the grid rule** (0.63–0.66 vs 0.65): the models' advantage is in probabilities and ranking across the whole field, not in picking the top 3.
 - **Best and worst test seasons:** 2023 is the easiest (PR-AUC 0.787, Red Bull's dominant year) and 2024 the hardest (0.667).
 
 ![Validation vs test scores for all models.](figures/compare_bars.png)
@@ -183,7 +190,7 @@ We removed one group at a time and retrained the final model, with gradient boos
 - **Starting position (grid + qualifying together) is the backbone:** removing it costs −0.15 test PR-AUC for logistic regression and −0.14 for gradient boosting.
 - **Removing grid or qualifying alone** costs only about −0.02, because the two are 98% correlated.
 - **Driver form, constructor form and standings each add a little** (up to about −0.02), and they substitute for one another because all of them encode "fast car this season".
-- **`field_size` adds nothing.**
+- **`field_size` adds nothing** for logistic regression; for gradient boosting it moves validation by −0.018 but test by only −0.004, within noise.
 
 ![Feature-group ablation.](figures/ablation.png)
 
@@ -196,12 +203,12 @@ We removed one group at a time and retrained the final model, with gradient boos
   - Grouped: grid 0.245 ≫ driver form 0.058 > qualifying 0.038 > standings 0.029 > constructor form 0.006 > context ≈ 0.
 - **Global, SHAP** (permutation explainer on the full pipeline, background from 2003–2019 rows).
   - The order is `grid_pos`, then car strength (`con_finish_pct_last5`, `con_points_share_before`), then qualifying and driver form.
-  - All directions match F1 intuition. A grid penalty (`grid_vs_quali > 0`) *raises* the prediction for a given slot, because the driver is faster than his slot suggests.
+  - All directions match F1 intuition. A grid penalty (`grid_vs_quali > 0`) *raises* the prediction for a given slot, because the driver is faster than the slot suggests.
   - TreeSHAP for gradient boosting also ranks `grid_pos` first by far.
 - **Local** (2024 São Paulo GP, a wet race).
   - **Norris, pole: P = 0.75**, from a base of 0.155. Pole adds +0.26, qualifying +0.09, team strength +0.17 and recent form +0.05. He finished 6th, a confident miss.
   - **Verstappen, 17th after a 5-place penalty: P = 0.04.** The grid removes −0.14 and a slow wet qualifying lap another −0.05, while the penalty (+0.03), his record and his team (+0.05) partly compensate. He won.
-  - LIME agrees qualitatively; its local fit is loose (R² ≈ 0.2).
+  - LIME agrees qualitatively; its local fit is loose (R² ≈ 0.3).
 
 ![Global: permutation importance per feature and per feature group (validation PR-AUC drop).](figures/xai_permutation.png)
 
