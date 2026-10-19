@@ -22,7 +22,7 @@ https://www.kaggle.com/datasets/rohanrao/formula-1-world-championship-1950-2020
 
 ## Results in one paragraph
 
-After cleaning (sentinels, typing, key checks, shared-drive duplicates, non-starters, Indianapolis 500) we built one row per driver per race with 20 leakage-safe features (grid, qualifying, driver form, constructor form, standings before the race, field size). We trained on 1981–2019, validated on 2020–2021 and tested once on 2022–2024. The final model (tuned logistic regression) gets **PR-AUC 0.722, F1 0.669, ROC-AUC 0.937** on the test seasons, against PR-AUC 0.647 for the rule "the top 3 on the grid finish on the podium". Random forest, gradient boosting and a shallow neural network were statistically indistinguishable from it.
+After cleaning (sentinels, typing, key checks, shared-drive duplicates, non-starters, Indianapolis 500) we built one row per driver per race with 20 leakage-safe features (grid, qualifying, driver form, constructor form, standings before the race, field size). We trained on 1994–2019, validated on 2020–2021 and tested once on 2022–2024. The final model (logistic regression) gets **PR-AUC 0.726, F1 0.665, ROC-AUC 0.937** on the test seasons, against PR-AUC 0.647 for the rule "the top 3 on the grid finish on the podium". Random forest, gradient boosting and a shallow neural network were statistically indistinguishable from it.
 
 ## How to run it
 
@@ -35,3 +35,5 @@ pip install -r requirements.txt
 Then open the notebook and click Run All. The first time you run it, it downloads the dataset (around 6 MB). A full run takes about a minute on a laptop.
 
 On Kaggle: add the dataset as an input and Run All. The notebook finds it under `/kaggle/input` by itself.
+
+The saved outputs, the figures and the report all come from the Kaggle run (Kaggle's Python image, pandas 2.3.3). With much newer library versions the training-window experiment can pick a 1981 start instead of 1994 (the two are within 0.002 PR-AUC), and every later number then shifts a little.

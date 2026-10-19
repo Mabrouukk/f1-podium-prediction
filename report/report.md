@@ -5,14 +5,14 @@ subtitle: "Mahmoud Ahmed Mabrouk Ghobashy (58-2432) · Zain Abdullah (58-0726) �
 
 ## 1. Task and headline result
 
-We predict, for every driver in a race, whether that driver finishes on the podium (`positionOrder ≤ 3`), using only information available **after qualifying and before the start**. The data is the Kaggle/Ergast Formula 1 dataset (version 24, 1950–2024, 14 relational tables). All numbers and figures in this report come from the run-all notebook `notebooks/f1_podium_prediction.ipynb`.
+We predict, for every driver in a race, whether that driver finishes on the podium (`positionOrder ≤ 3`), using only information available **after qualifying and before the start**. The data is the Kaggle/Ergast Formula 1 dataset (version 24, 1950–2024, 14 relational tables). All numbers and figures in this report come from the run-all notebook `notebooks/f1_podium_prediction.ipynb`, as run on Kaggle.
 
 | | |
 |---|---|
 | **Grain** | one row per (raceId, driverId): 24,586 race starts, 1950–2024 |
-| **Split** | train 1981–2019 · validation 2020–2021 · test 2022–2024 (chronological) |
-| **Final model** | tuned logistic regression on 20 leakage-safe features |
-| **Test (2022–2024)** | **PR-AUC 0.722** (primary) · **F1 0.669** (secondary) · ROC-AUC 0.937 · top-3 precision 0.662 |
+| **Split** | train 1994–2019 · validation 2020–2021 · test 2022–2024 (chronological) |
+| **Final model** | logistic regression (C = 1) on 20 leakage-safe features |
+| **Test (2022–2024)** | **PR-AUC 0.726** (primary) · **F1 0.665** (secondary) · ROC-AUC 0.937 · top-3 precision 0.662 |
 | **Reference rule** | "top 3 on the grid finish on the podium": PR-AUC 0.647 · F1 0.649 |
 
 ## 2. Data cleaning and auditing
@@ -136,7 +136,7 @@ Every *form* feature uses `groupby(...).shift(1)`, so it covers only earlier rac
 
 - Univariate AUCs: `quali_pos` 0.91, `grid_pos` 0.88, championship positions 0.83–0.84, constructor form 0.83, driver form 0.79–0.81.
 - All of these features are monotone in the decile plots.
-- **Excluded on evidence:** `home_race` (Q2, and re-checked: adding it changes test PR-AUC by +0.0001 and its coefficient is practically zero), sprint results (only from 2021, so absent from training), and `year` (the model would have to extrapolate).
+- **Excluded on evidence:** `home_race` (Q2, and re-checked: adding it lowers validation PR-AUC by 0.005 and test by 0.001, with a small negative coefficient), sprint results (only from 2021, so absent from training), and `year` (the model would have to extrapolate).
 
 ![Feature evidence: podium rate across deciles of each feature (training seasons).](figures/feat_effect_plots.png)
 
@@ -146,12 +146,12 @@ Every *form* feature uses `groupby(...).shift(1)`, so it covers only earlier rac
   - It mirrors real use and keeps races and seasons intact.
   - The test seasons are a genuine regime change (the 2022 rules).
   - All choices (training window, hyperparameters, thresholds, model) use validation only.
-- **Training window.** Chosen by experiment from {1950, 1981, 1994, 2003, 2010}. **1981–2019** is best, though within noise of the other long windows; 2010–2019 is clearly worse because it has too little data.
+- **Training window.** Chosen by experiment from {1950, 1981, 1994, 2003, 2010}. **1994–2019** (the first season of the qualifying table) has the best mean validation PR-AUC, though within 0.002 of 1950 and 1981, i.e. within noise; the short windows (2003, 2010) are worse because they have too little data.
 - **Preprocessing:** median imputation with missing-indicator columns, then standardisation. It sits inside the model `Pipeline`, so it is fitted on training rows only.
-- **Preprocessing-order experiment 1, fit before vs after the split:** almost no difference here (test PR-AUC 0.7216 vs 0.7218), even though the means shift by up to 0.15 SD. We still enforce the correct order.
+- **Preprocessing-order experiment 1, fit before vs after the split:** almost no difference here (test PR-AUC 0.7264 for both), even though the means shift by up to 0.17 SD. We still enforce the correct order.
 - **Preprocessing-order experiment 2, oversample before vs after the split:**
   - Oversampling *before* the split reports a fake validation PR-AUC of **0.93**; on the real validation races the same model scores 0.73.
-  - Even oversampling *after* the split is worse than none (0.731 vs 0.738) and doubles the predicted probabilities.
+  - Even oversampling *after* the split is worse than none (0.731 vs 0.734) and doubles the predicted probabilities.
   - So we do not resample; the threshold is tuned instead.
 
 ![Experiment 2: oversampling before the split inflates the reported score.](figures/prep_order_oversampling.png)
@@ -163,21 +163,32 @@ The models below use the same rows, features and preprocessing. Hyperparameters 
 - **Primary metric, PR-AUC:** the positive class is rare (about 15%), and PR-AUC is not inflated by easy negatives.
 - **Secondary metric, F1:** the quality of the actual yes/no decision.
 
-| model | train PR-AUC | val PR-AUC | test PR-AUC | test ROC-AUC | test F1 | test precision | test recall | test top-3 prec. |
-|---|---|---|---|---|---|---|---|---|
-| reference: grid ≤ 3 | 0.544 | 0.648 | 0.647 | 0.913 | 0.649 | 0.650 | 0.647 | 0.652 |
-| logistic regression (baseline) | 0.616 | 0.738 | 0.722 | 0.937 | 0.669 | 0.543 | 0.873 | 0.662 |
-| **logistic regression (tuned, final)** | 0.616 | **0.738** | **0.722** | **0.937** | **0.669** | 0.543 | 0.873 | 0.662 |
-| random forest | 0.662 | 0.723 | 0.717 | 0.940 | 0.667 | 0.543 | 0.863 | 0.632 |
-| gradient boosting | 0.716 | 0.717 | 0.708 | 0.938 | 0.689 | 0.673 | 0.706 | 0.652 |
-| shallow NN (MLP 64→32) | 0.645 | 0.747* | 0.715 | 0.933 | 0.672 | 0.575 | 0.809 | 0.637 |
+**Validation (2020–2021):**
 
-\* single seed; the 5-seed mean is 0.730 ± 0.019. The network was therefore selected on its mean, and the tuned logistic regression became the final model. Train scores are *lower* than validation for every model because the 1981–2002 training seasons (no qualifying data, low reliability, big fields) are much harder to predict than the modern seasons; the full train/validation/test table for all metrics is in the notebook (section 10).
+| model | PR-AUC | ROC-AUC | F1 | precision | recall | top-3 prec. |
+|---|---|---|---|---|---|---|
+| reference: grid ≤ 3 | 0.648 | 0.910 | 0.695 | 0.698 | 0.692 | 0.701 |
+| **logistic regression (baseline = tuned, final)** | **0.734** | 0.933 | 0.713 | 0.652 | 0.786 | 0.692 |
+| random forest | 0.726 | 0.935 | 0.716 | 0.636 | 0.821 | 0.701 |
+| gradient boosting | 0.718 | 0.931 | 0.725 | 0.707 | 0.744 | 0.675 |
+| shallow NN (MLP 64→32) | 0.739* | 0.927 | 0.708 | 0.683 | 0.735 | 0.701 |
 
-- **Learned models vs the rule.** A race-level bootstrap gives 95% intervals of about ±0.06 on test PR-AUC. **All learned models beat the rule** (0 of 1,000 bootstrap samples favour the rule) but are **indistinguishable from each other**: the flexible models beat the baseline in only 15–33% of samples.
+**Test (2022–2024), plus train PR-AUC:**
+
+| model | train PR-AUC | PR-AUC | ROC-AUC | F1 | precision | recall | top-3 prec. |
+|---|---|---|---|---|---|---|---|
+| reference: grid ≤ 3 | 0.590 | 0.647 | 0.913 | 0.649 | 0.650 | 0.647 | 0.652 |
+| **logistic regression (baseline = tuned, final)** | 0.655 | **0.726** | **0.937** | **0.665** | 0.542 | 0.863 | 0.662 |
+| random forest | 0.748 | 0.714 | 0.940 | 0.668 | 0.537 | 0.882 | 0.657 |
+| gradient boosting | 0.787 | 0.703 | 0.938 | 0.692 | 0.643 | 0.750 | 0.637 |
+| shallow NN (MLP 64→32) | 0.686 | 0.716 | 0.935 | 0.654 | 0.614 | 0.701 | 0.637 |
+
+\* single seed; the 5-seed mean is 0.727 ± 0.006. The network was therefore selected on its mean, and logistic regression became the final model. Tuning chose C = 1, the default, so the tuned and baseline logistic regressions are the same model. Train PR-AUC is *lower* than validation for logistic regression and the network because the 1994–2002 training seasons (patchy qualifying, low reliability, bigger fields) are harder to predict than the modern seasons; the tree ensembles fit their training rows more closely and score higher there.
+
+- **Learned models vs the rule.** A race-level bootstrap gives 95% intervals of about ±0.06 on test PR-AUC. **All learned models beat the rule** (0 of 1,000 bootstrap samples favour the rule) but are **indistinguishable from each other**: the flexible models beat the baseline in only 4–17% of samples.
 - **The models are well calibrated.**
-- **Top-3 precision is no better than the grid rule** (0.63–0.66 vs 0.65): the models' advantage is in probabilities and ranking across the whole field, not in picking the top 3.
-- **Best and worst test seasons:** 2023 is the easiest (PR-AUC 0.787, Red Bull's dominant year) and 2024 the hardest (0.667).
+- **Top-3 precision is no better than the grid rule** (0.64–0.66 vs 0.65): the models' advantage is in probabilities and ranking across the whole field, not in picking the top 3.
+- **Best and worst test seasons:** 2023 is the easiest (PR-AUC 0.790, Red Bull's dominant year) and 2024 the hardest (0.665).
 
 ![Validation vs test scores for all models.](figures/compare_bars.png)
 
@@ -187,10 +198,10 @@ The models below use the same rows, features and preprocessing. Hyperparameters 
 
 We removed one group at a time and retrained the final model, with gradient boosting as a second opinion.
 
-- **Starting position (grid + qualifying together) is the backbone:** removing it costs −0.15 test PR-AUC for logistic regression and −0.14 for gradient boosting.
-- **Removing grid or qualifying alone** costs only about −0.02, because the two are 98% correlated.
-- **Driver form, constructor form and standings each add a little** (up to about −0.02), and they substitute for one another because all of them encode "fast car this season".
-- **`field_size` adds nothing** for logistic regression; for gradient boosting it moves validation by −0.018 but test by only −0.004, within noise.
+- **Starting position (grid + qualifying together) is the backbone:** removing it costs −0.16 test PR-AUC for logistic regression and −0.11 for gradient boosting.
+- **Removing grid or qualifying alone** costs only 0 to −0.02, because the two are 98% correlated.
+- **Driver form, constructor form and standings each add a little** (up to about −0.02, with signs that differ between validation and test), and they substitute for one another because all of them encode "fast car this season".
+- **`field_size` adds nothing** for either model (|Δ| ≤ 0.006).
 
 ![Feature-group ablation.](figures/ablation.png)
 
@@ -199,15 +210,15 @@ We removed one group at a time and retrained the final model, with gradient boos
 > **Importance is not causation.** These methods show what the *model relies on* to predict, not what *causes* podiums. For example, team form is important because fast cars stay fast, not because past podiums make a car faster. Correlated features also share and swap importance.
 
 - **Global, permutation importance (validation).**
-  - `grid_pos` dominates: shuffling it costs 0.20 PR-AUC.
-  - Grouped: grid 0.245 ≫ driver form 0.058 > qualifying 0.038 > standings 0.029 > constructor form 0.006 > context ≈ 0.
+  - `grid_pos` dominates: shuffling it costs 0.23 PR-AUC.
+  - Grouped: grid 0.305 ≫ standings 0.052 > driver form 0.041 > qualifying 0.020 > constructor form 0.002 > context ≈ 0.
 - **Global, SHAP** (permutation explainer on the full pipeline, background from 2003–2019 rows).
-  - The order is `grid_pos`, then car strength (`con_finish_pct_last5`, `con_points_share_before`), then qualifying and driver form.
+  - The order is `grid_pos`, then car strength (`con_finish_pct_last5`, `con_points_share_before`), then driver form and standings; the qualifying features come lower because the grid already carries most of their information.
   - All directions match F1 intuition. A grid penalty (`grid_vs_quali > 0`) *raises* the prediction for a given slot, because the driver is faster than the slot suggests.
   - TreeSHAP for gradient boosting also ranks `grid_pos` first by far.
 - **Local** (2024 São Paulo GP, a wet race).
-  - **Norris, pole: P = 0.75**, from a base of 0.155. Pole adds +0.26, qualifying +0.09, team strength +0.17 and recent form +0.05. He finished 6th, a confident miss.
-  - **Verstappen, 17th after a 5-place penalty: P = 0.04.** The grid removes −0.14 and a slow wet qualifying lap another −0.05, while the penalty (+0.03), his record and his team (+0.05) partly compensate. He won.
+  - **Norris, pole: P = 0.78**, from a base of 0.156. Pole adds +0.29 (+0.04 more for the front row), team strength +0.19 and recent form +0.06. He finished 6th, a confident miss.
+  - **Verstappen, 17th after a 5-place penalty: P = 0.05.** The grid removes −0.17 and a slow wet qualifying lap another −0.03, while the penalty (+0.04), his record and his team (about +0.02 each) partly compensate. He won.
   - LIME agrees qualitatively; its local fit is loose (R² ≈ 0.3).
 
 ![Global: permutation importance per feature and per feature group (validation PR-AUC drop).](figures/xai_permutation.png)
@@ -216,25 +227,25 @@ We removed one group at a time and retrained the final model, with gradient boos
 
 ![Global cross-check: mean |SHAP| for the final model vs gradient boosting (TreeSHAP). Both rank grid_pos first by a wide margin.](figures/xai_shap_bar_models.png)
 
-![Local SHAP: Norris, 2024 São Paulo GP (pole, P = 0.75, finished 6th).](figures/xai_local_norris.png)
+![Local SHAP: Norris, 2024 São Paulo GP (pole, P = 0.78, finished 6th).](figures/xai_local_norris.png)
 
-![Local SHAP: Verstappen, 2024 São Paulo GP (started 17th, P = 0.04, won).](figures/xai_local_verstappen.png)
+![Local SHAP: Verstappen, 2024 São Paulo GP (started 17th, P = 0.05, won).](figures/xai_local_verstappen.png)
 
-![Local LIME: Verstappen, 2024 São Paulo GP. Red conditions push P(podium) down, blue push it up. Starting beyond P16 and a slow qualifying gap dominate, partly offset by his penalty (grid_vs_quali > 0), recent form and a front-running team.](figures/xai_lime_verstappen.png)
+![Local LIME: Verstappen, 2024 São Paulo GP. Red conditions push P(podium) down, blue push it up. Starting beyond P16 is the strongest negative, with a slow qualifying gap and no front-row start; his penalty (grid_vs_quali > 0), recent form and a front-running team push it up.](figures/xai_lime_verstappen.png)
 
 ## 9. Inference function
 
 `predict_podium(record)` takes a dictionary with any subset of the 20 features. It derives `front_row`, `grid_vs_quali` and `pit_lane_start` when possible, validates the inputs, imputes the missing ones inside the pipeline, and returns the probability, the decision at the validation threshold, and the list of missing inputs.
 
-- **Complete record:** Verstappen, 2023 Japanese GP → P = 0.86, podium ✓.
-- **Same record with its qualifying data removed:** P = 0.83, so the prediction degrades gracefully.
+- **Complete record:** Verstappen, 2023 Japanese GP → P = 0.89, podium ✓.
+- **Same record with its qualifying data removed:** P = 0.87, so the prediction degrades gracefully.
 - **Very sparse records** are read as "debutant in round 1", because that is what missing form and standings meant in training. The function reports `n_missing_inputs` as a warning.
 
 ## 10. Limitations
 
-1. **Qualifying-coverage drift.** No qualifying data before 1994, patchy data in 1996–2002, complete only from 2003. The training data mixes regimes with and without qualifying.
-2. **Era sensitivity.** Reliability, field sizes, points systems and overtaking all changed; the grid-to-podium curve steepened over time. The 2022 rules are a distribution shift.
-3. **Small evaluation sets** (117 and 204 podiums). The model differences are within noise, and selecting among many configurations inflates validation scores; the network's lucky seed is an example.
+1. **Qualifying-coverage drift.** No qualifying data before 1994, patchy data in 1996–2002, complete only from 2003. The 1994–2019 training data mixes seasons with and without qualifying records.
+2. **Era sensitivity.** Reliability, field sizes, points systems and overtaking all changed; the grid-to-podium curve steepened over time. The 2022 rules are a distribution shift. The choice of training window is itself within noise (1950, 1981 and 1994 starts score within 0.002), and different library versions can tip it.
+3. **Small evaluation sets** (117 and 204 podiums). The model differences are within noise, and selecting among many configurations inflates validation scores; the network's lucky seed (0.739 vs a 0.727 mean) is an example.
 4. **Race-day events** (rain, safety cars, crashes, failures) are invisible before the start.
 5. **Constructor renames** reset team history.
 6. **Documented judgement calls:** the shared-drive rule, the population filters, pit-lane placement and the status grouping.
